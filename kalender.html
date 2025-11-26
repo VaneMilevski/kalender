@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Jahreskalender mit Kalenderwochen</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+* { cursor: default; }
+body { 
+  background: #f4f4f4; 
+  padding-top: 10px; 
+  min-height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+  transition: background-color 0.3s, color 0.3s; 
+}
+body.dark-mode { background: #1a1a1a; color: #e0e0e0; }
+
+.calendar-card { 
+  height: 280px; 
+  display: flex; 
+  flex-direction: column; 
+  background: #fff; 
+  transition: background-color 0.3s, color 0.3s; 
+}
+.calendar-card.dark-mode { background: #2a2a2a; color: #e0e0e0; }
+
+.calendar-header { 
+  background: #007bff; 
+  color: white; 
+  text-align: center; 
+  padding: 0.5rem; 
+  font-weight: bold; 
+  border-top-left-radius: 0.375rem; 
+  border-top-right-radius: 0.375rem; 
+  transition: background-color 0.3s; 
+}
+.calendar-header.dark-mode { background: #0056b3; }
+
+.calendar-card .card-body { flex-grow: 1; padding: 0.5rem; overflow: hidden; }
+
+.weekdays, .days { display: grid; grid-template-columns: 40px repeat(7, 1fr); text-align: center; font-size: 0.85rem; }
+.weekdays div { font-weight: bold; padding: 0.3rem; }
+.days div { padding: 0.3rem; margin: 1px; border-radius: 4px; font-size: 0.85rem; }
+
+.days div.today { background: #007bff; color: white; font-weight: bold; }
+.days div.today.dark-mode { background: #0056b3; }
+
+.cw { font-weight: bold; color: #555; }
+.cw.dark-mode { color: #fffdfd; }
+
+.dark-mode-toggle { position: fixed; top: 10px; right: 10px; z-index: 1000; }
+.current-year-toggle { position: fixed; top: 10px; right: 70px; z-index: 1000; }
+
+.holiday-cell { background: rgba(243, 156, 18, 0.500); color: #000; font-weight: bold; }
+.dark-mode .holiday-cell { color: #fff; }
+
+.current-week-row { background-color: rgba(98, 176, 240, 0.4); border-radius: 4px; }
+.weekend-sat, .weekend-sun { background-color: rgba(255, 182, 193, 0.200); }
+
+.state-drawer {
+  position: fixed;
+  top: 0;
+  right: -280px;
+  width: 280px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+  padding: 20px;
+  overflow-y: auto;
+  transition: right 0.3s;
+  z-index: 1000;
+}
+.state-drawer.open { right: 0; }
+.dark-mode .state-drawer { background: #2a2a2a; color: #e0e0e0; }
+
+.state-drawer button { margin-bottom: 10px; width: 100%; }
+.state-drawer .form-check { margin-bottom: 16px; }
+
+.drawer-toggle-btn {
+  position: fixed;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  z-index: 1001;
+  padding: 0.2rem 0.2rem;
+  width: auto;
+  height: auto;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bolder;
+}
+.drawer-toggle-btn span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  cursor: pointer !important;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <button class="btn btn-primary current-year-toggle" onclick="goToCurrentYear()">Aktuelles Jahr</button>
+  <button class="btn btn-secondary dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
+
+  <div class="year-controls d-flex justify-content-center align-items-center mb-2">
+    <button class="btn btn-primary me-3" onclick="changeYear(-1)">Vorheriges Jahr</button>
+    <h2 id="year-title" class="mb-0"></h2>
+    <button class="btn btn-primary ms-3" onclick="changeYear(1)">Nächstes Jahr</button>
+  </div>
+
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3" id="year-grid"></div>
+</div>
+
+<button class="btn btn-sm btn-primary drawer-toggle-btn" onclick="toggleDrawer()">
+  <span>
+    F<br>i<br>l<br>t<br>e<br>r<br><br>B<br>u<br>n<br>d<br>e<br;s<br>l<br>ä<br>n<br>d<br>e<br>r
+  </span>
+</button>
+
+<div class="state-drawer" id="state-drawer">
+  <button class="btn btn-sm btn-primary" onclick="toggleAllStates()">Alle auswählen</button>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="BW" id="state-BW" checked><label class="form-check-label" for="state-BW">Baden-Württemberg</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="BY" id="state-BY" checked><label class="form-check-label" for="state-BY">Bayern</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="BE" id="state-BE" checked><label class="form-check-label" for="state-BE">Berlin</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="BB" id="state-BB" checked><label class="form-check-label" for="state-BB">Brandenburg</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="HB" id="state-HB" checked><label class="form-check-label" for="state-HB">Bremen</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="HH" id="state-HH" checked><label class="form-check-label" for="state-HH">Hamburg</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="HE" id="state-HE" checked><label class="form-check-label" for="state-HE">Hessen</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="MV" id="state-MV" checked><label class="form-check-label" for="state-MV">Mecklenburg-Vorpommern</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="NI" id="state-NI" checked><label class="form-check-label" for="state-NI">Niedersachsen</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="NW" id="state-NW" checked><label class="form-check-label" for="state-NW">Nordrhein-Westfalen</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="RP" id="state-RP" checked><label class="form-check-label" for="state-RP">Rheinland-Pfalz</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="SL" id="state-SL" checked><label class="form-check-label" for="state-SL">Saarland</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="SN" id="state-SN" checked><label class="form-check-label" for="state-SN">Sachsen</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="ST" id="state-ST" checked><label class="form-check-label" for="state-ST">Sachsen-Anhalt</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="SH" id="state-SH" checked><label class="form-check-label" for="state-SH">Schleswig-Holstein</label></div>
+  <div class="form-check"><input class="form-check-input state-checkbox" type="checkbox" value="TH" id="state-TH" checked><label class="form-check-label" for="state-TH">Thüringen</label></div>
+</div>
+
+<script>
+let currentYear = new Date().getFullYear();
+const today = new Date();
+const weekdayLabels = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const monthLabels = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+let isDarkMode = localStorage.getItem('darkMode') === 'true';
+const currentWeek = isoWeek(today);
+
+const holidays = {
+  "1-1": {name:"Neujahr", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "1-6": {name:"Heilige Drei Könige", states:["BW","BY","ST"]},
+  "3-8": {name:"Internationaler Frauentag", states:["BE"]},
+  "5-1": {name:"Tag der Arbeit", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "10-3": {name:"Tag der Deutschen Einheit", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "12-25": {name:"1. Weihnachtstag", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "12-26": {name:"2. Weihnachtstag", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "8-15": {name:"Mariä Himmelfahrt", states:["BY","SL"]},
+  "8-8": {name:"Augsburger Friedensfest", states:["BY"]},
+  "9-20": {name:"Weltkindertag", states:["TH"]},
+  "allSaints": {name:"Allerheiligen", states:["BW","BY","NW","RP","SL"]},
+  "reformation": {name:"Reformationstag", states:["BB","MV","SN","ST","TH","HB","HH","SH","NI"]},
+  "goodFriday": {name:"Karfreitag", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "4-easterSunday": {name:"Ostersonntag", states:["BB"]},
+  "easterMonday": {name:"Ostermontag", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "ascension": {name:"Christi Himmelfahrt", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "4-pentecostSunday": {name:"Pfingstsonntag", states:["BB"]},
+  "whitMonday": {name:"Pfingstmontag", states:["BW","BY","BE","BB","HB","HH","HE","MV","NI","NW","RP","SL","SN","ST","SH","TH"]},
+  "corpusChristi": {name:"Fronleichnam", states:["BW","BY","HE","NW","RP","SL"]},
+  "repentanceDay": {name:"Buß- und Bettag", states:["SN"]}
+};
+
+// Easter calculation
+function easterSunday(year){
+  const f=Math.floor,a=year%19,b=f(year/100),c=year%100,d=f(b/4),e=b%4,g=f((8*b+13)/25),h=(19*a+b-d-g+15)%30,i=f(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=f((a+11*h+22*l)/451),month=f((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1; 
+  return new Date(year,month-1,day);
+}
+
+function getMovableHolidayDate(baseDate, offsetDays){
+  const date = new Date(baseDate);
+  date.setDate(date.getDate()+offsetDays);
+  return `${date.getMonth()+1}-${date.getDate()}`;
+}
+
+function repentanceDay(year){
+  const dec24 = new Date(year, 11, 24);
+  const dayOfWeek = dec24.getDay();
+  const firstAdvent = new Date(dec24);
+  firstAdvent.setDate(24 - ((dayOfWeek+6)%7) - 21);
+  const wed = new Date(firstAdvent);
+  wed.setDate(firstAdvent.getDate()-11);
+  return `${wed.getMonth()+1}-${wed.getDate()}`;
+}
+
+function getHolidayMap(year){
+  const map = {};
+  const easter = easterSunday(year);
+  map[getMovableHolidayDate(easter,-2)] = holidays.goodFriday;
+  map[getMovableHolidayDate(easter,0)] = holidays["4-easterSunday"];
+  map[getMovableHolidayDate(easter,1)] = holidays.easterMonday;
+  map[getMovableHolidayDate(easter,39)] = holidays.ascension;
+  map[getMovableHolidayDate(easter,49)] = holidays["4-pentecostSunday"];
+  map[getMovableHolidayDate(easter,50)] = holidays.whitMonday;
+  map[getMovableHolidayDate(easter,60)] = holidays.corpusChristi;
+  map[repentanceDay(year)] = holidays.repentanceDay;
+  map["10-31"] = holidays.reformation;
+  map["11-1"] = holidays.allSaints;
+  return {...map,...holidays};
+}
+
+let holidayMap = getHolidayMap(currentYear);
+
+function isoWeek(date){
+  const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
+  const yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d-yearStart)/86400000)+1)/7);
+}
+
+function getSelectedStates(){
+  const checkboxes=document.querySelectorAll('.state-checkbox');
+  return Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.value);
+}
+
+function renderMonth(year,month){
+  const firstOfMonth=new Date(year,month,1);
+  const lastOfMonth=new Date(year,month+1,0);
+  let startDate=new Date(firstOfMonth);
+  startDate.setDate(startDate.getDate()-((startDate.getDay()+6)%7));
+  let endDate=new Date(lastOfMonth);
+  endDate.setDate(endDate.getDate()+(7-endDate.getDay())%7);
+  const calendarDiv=document.createElement('div');
+  calendarDiv.className='col';
+  calendarDiv.innerHTML=`
+  <div class="card calendar-card shadow-sm ${isDarkMode?'dark-mode':''}">
+    <div class="calendar-header ${isDarkMode?'dark-mode':''}">${monthLabels[month]} ${year}</div>
+    <div class="card-body">
+      <div class="weekdays">
+        <div class="cw ${isDarkMode?'dark-mode':''}">KW</div>
+        ${weekdayLabels.map(day=>`<div>${day}</div>`).join('')}
+      </div>
+      <div class="days"></div>
+    </div>
+  </div>`;
+  const daysContainer=calendarDiv.querySelector('.days');
+  const selectedStates=getSelectedStates();
+  let current=new Date(startDate);
+  while(current<=endDate){
+    const weekRow=document.createElement('div');
+    weekRow.style.display='contents';
+    const weekNum=isoWeek(current);
+    const isCurrentWeek=weekNum===currentWeek && year===today.getFullYear();
+    weekRow.innerHTML+=`<div class="cw ${isDarkMode?'dark-mode':''} ${isCurrentWeek?'current-week-row':''}">${weekNum}</div>`;
+    for(let i=0;i<7;i++){
+      let dayCell='';
+      const dayOfWeek=current.getDay();
+      let weekendClass='';
+      if(dayOfWeek===6) weekendClass='weekend-sat';
+      if(dayOfWeek===0) weekendClass='weekend-sun';
+      if(current.getMonth()===month){
+        const isToday=current.toDateString()===today.toDateString();
+        const dateKey=`${current.getMonth()+1}-${current.getDate()}`;
+        const holiday=holidayMap[dateKey];
+        let showHoliday=false, holidayTooltip='';
+        if(holiday){
+          const activeStates=holiday.states.filter(s=>selectedStates.includes(s));
+          if(activeStates.length>0){showHoliday=true; holidayTooltip=`${holiday.name} (${activeStates.join(', ')})`;}
+        }
+        dayCell=`<div class="${showHoliday?'holiday-cell':''} ${isToday?'today '+(isDarkMode?'dark-mode':''):''} ${isCurrentWeek?'current-week-row':''} ${weekendClass}" ${showHoliday?`title="${holidayTooltip}"`:''}>${current.getDate()}</div>`;
+      } else { dayCell=`<div ${isCurrentWeek?'class="current-week-row"':''}></div>`; }
+      weekRow.innerHTML+=dayCell;
+      current.setDate(current.getDate()+1);
+    }
+    daysContainer.appendChild(weekRow);
+  }
+  return calendarDiv;
+}
+
+function renderYear(year){
+  document.getElementById('year-title').textContent=year;
+  const grid=document.getElementById('year-grid');
+  grid.innerHTML='';
+  holidayMap=getHolidayMap(year);
+  for(let m=0;m<12;m++){
+    grid.appendChild(renderMonth(year,m));
+  }
+  document.body.classList.toggle('dark-mode',isDarkMode);
+  document.querySelector('.dark-mode-toggle').textContent=isDarkMode?'☀️':'🌙';
+}
+
+function changeYear(offset){ currentYear+=offset; renderYear(currentYear);}
+function goToCurrentYear(){ currentYear=new Date().getFullYear(); renderYear(currentYear);}
+function toggleDarkMode(){ isDarkMode=!isDarkMode; localStorage.setItem('darkMode',isDarkMode); renderYear(currentYear);}
+function toggleAllStates(){ const checkboxes=document.querySelectorAll('.state-checkbox'); const allChecked=Array.from(checkboxes).every(cb=>cb.checked); checkboxes.forEach(cb=>cb.checked=!allChecked); renderYear(currentYear);}
+function toggleDrawer(){ document.getElementById('state-drawer').classList.toggle('open'); }
+
+document.querySelectorAll('.state-checkbox').forEach(cb=>cb.addEventListener('change',()=>renderYear(currentYear)));
+
+renderYear(currentYear);
+</script>
+</body>
+</html>
