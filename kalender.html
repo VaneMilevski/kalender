@@ -187,13 +187,12 @@ function getMovableHolidayDate(baseDate, offsetDays){
   return `${date.getMonth()+1}-${date.getDate()}`;
 }
 
+// Corrected Buß- und Bettag calculation
 function repentanceDay(year){
-  const dec24 = new Date(year, 11, 24);
-  const dayOfWeek = dec24.getDay();
-  const firstAdvent = new Date(dec24);
-  firstAdvent.setDate(24 - ((dayOfWeek+6)%7) - 21);
-  const wed = new Date(firstAdvent);
-  wed.setDate(firstAdvent.getDate()-11);
+  const nov23 = new Date(year, 10, 23);
+  const dayOfWeek = nov23.getDay();
+  const offset = (dayOfWeek >= 3) ? dayOfWeek - 3 : 7 - (3 - dayOfWeek);
+  const wed = new Date(year, 10, 23 - offset);
   return `${wed.getMonth()+1}-${wed.getDate()}`;
 }
 
